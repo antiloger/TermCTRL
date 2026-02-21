@@ -12,18 +12,9 @@ import (
 )
 
 type ClockModel struct {
-	w  types.Position
-	ct time.Time
-}
-
-// Message for clock tick
-type tickMsg time.Time
-
-// Create tick command
-func tick() tea.Cmd {
-	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
-		return tickMsg(t)
-	})
+	w    types.Position
+	size types.Position
+	ct   time.Time
 }
 
 func NewClockWidget() ClockModel {
@@ -33,7 +24,7 @@ func NewClockWidget() ClockModel {
 }
 
 func (C ClockModel) Init() tea.Cmd {
-	return tick()
+	return nil
 }
 
 func (C ClockModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -41,9 +32,9 @@ func (C ClockModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		C.w.X = msg.Width
 		C.w.Y = msg.Height
-	case tickMsg:
+	case types.TickMsg:
 		C.ct = time.Time(msg)
-		return C, tick() // Keep ticking
+		return C, nil // Keep ticking
 	case tea.KeyMsg:
 		if msg.String() == "q" || msg.String() == "ctrl+c" {
 			return C, tea.Quit
@@ -52,15 +43,20 @@ func (C ClockModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return C, nil
 }
 
+func (C ClockModel) SetPosition(x, y int) {
+	C.w.X = x
+	C.w.Y = y
+}
+
 func (C ClockModel) View() string {
 	// Get current time
 	hour := C.ct.Hour()
 	minute := C.ct.Minute()
 	second := C.ct.Second()
-	day := C.ct.Day()
-	year := C.ct.Year()
-	month := C.ct.Month().String()[:3] // Short month name
-	dayOfWeek := C.ct.Weekday().String()[:3]
+	// day := C.ct.Day()
+	// year := C.ct.Year()
+	// month := C.ct.Month().String()[:3] // Short month name
+	// dayOfWeek := C.ct.Weekday().String()[:3]
 	timezone, _ := C.ct.Zone()
 
 	// Convert to digits
@@ -72,7 +68,18 @@ func (C ClockModel) View() string {
 	s2 := second % 10
 
 	// Build the display: HH:MM:SS
-	display := joinHorizontal(
+	// display := joinHorizontal(
+	// 	asciiDigits[h1],
+	// 	asciiDigits[h2],
+	// 	asciiColon,
+	// 	asciiDigits[m1],
+	// 	asciiDigits[m2],
+	// 	asciiColon,
+	// 	asciiDigits[s1],
+	// 	asciiDigits[s2],
+	// )
+
+	display := lipgloss.JoinHorizontal(lipgloss.Center,
 		asciiDigits[h1],
 		asciiDigits[h2],
 		asciiColon,
@@ -83,22 +90,24 @@ func (C ClockModel) View() string {
 		asciiDigits[s2],
 	)
 
+	display = lipgloss.JoinHorizontal(lipgloss.Center, display, "      ", TestCal2)
+
 	style := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("ff")).
-		Bold(true).Background(lipgloss.Color("240")).Padding(1)
+		Bold(true)
 
 	timeStyle := lipgloss.NewStyle()
-	datestlyle := lipgloss.NewStyle().
-		Bold(true).
-		Italic(true)
-	dateStr := fmt.Sprintf(" %s %02d, %d || %s ", month, day, year, dayOfWeek)
+	// datestlyle := lipgloss.NewStyle().
+	// 	Bold(true).
+	// 	Italic(true)
+	// dateStr := fmt.Sprintf(" %s %02d, %d || %s ", month, day, year, dayOfWeek)
 	bottomInfo := fmt.Sprintf("TZ: %s", timezone)
 	return lipgloss.Place(
 		C.w.X,
 		C.w.Y,
 		lipgloss.Center, // horizontal center
 		lipgloss.Center, // vertical center
-		style.Render(datestlyle.Render(dateStr)+"\n"+timeStyle.Render(display)+"\n"+bottomInfo),
+		style.Render(timeStyle.Render(display)+"\n"+bottomInfo),
 	)
 }
 
